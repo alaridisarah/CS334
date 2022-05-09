@@ -17,18 +17,20 @@ from secrets import token_bytes
 import sys
 
 
-def encryptPass ( pass1 ): #encryption function
+## Encryption function to encrypt password before we save it in our database.
+def encryptPass ( pass1 ): 
     newMessage=''
     for i in range(len(pass1)):
         if pass1[i] != ' ':
-            n = ord(pass1[i]) + 2 #encryption key is +2 of ascicode
+            n = ord(pass1[i]) + 2               #encryption key is +2 of ascicode
             n = chr(n)
             newMessage = newMessage + n
         else:
             newMessage = newMessage + ' '
-    return newMessage #encrypted meesage
+    return newMessage                           #encrypted meesage
 
 
+## Function to take a username and password form user, encrypt password by using encryptPass function and save it in database.
 def register_user():
     print("User register")
     global username_info
@@ -50,6 +52,8 @@ def register_user():
     username_entry.delete(0, END)
     password_entry.delete(0, END)
 
+
+## Search on database to check if user exist or no.
 def Search_inDatabase(username):
     global Users
 
@@ -60,6 +64,8 @@ def Search_inDatabase(username):
         else:
             return False
 
+
+## Function to check first if user exist or no, if exist it will check if the password is correct or no, if correct the login is success and will open a home screen.
 def login_verify():
     print("Verify Login")
 
@@ -89,12 +95,11 @@ def login_verify():
         label1.pack()
 
 
-
-
+## Function register form if click on button register will run function register_user.
 def register():
     print("register button")
 
-    def go_back():
+    def go_back():                                      ## Back to main screen 
         screen1.destroy()
 
     global screen1
@@ -126,9 +131,11 @@ def register():
     Button(screen1, text="Back", height=1, width=10, command=go_back).pack()
 
 
+## Function login form if click on button login will run function login_verify to check.
 def login():
     print("login button")
-    def go_back():
+
+    def go_back():                                  ## Back to main screen 
         screen2.destroy()
 
     global screen2
@@ -166,9 +173,7 @@ def login():
     Button(screen2,text="Cancel", height=1, width=10, command=Stop).pack()
 
 
-
-
-
+## First screen that have three option 1. register 2. login 3. cancel
 def main_screen():
     global screen
 
@@ -188,14 +193,19 @@ def main_screen():
 
     screen.mainloop()
 
+
+
+## Stop run if user want close application 
 def Stop():
     sys.exit()
 
+
+## If user wants to send, it type the username to receiver and message. Message will be encrypted by AES.
 def Home_Screen_Sending():
     def clear():
         my_text.delete(1.0, END)
 
-    def Send_message():
+    def Send_message():                             ## Send and encrypt message 
         global signature , keyEnc , filename
 
         message=username1+"\n"+my_text.get(1.0,END)
@@ -227,9 +237,8 @@ def Home_Screen_Sending():
         my_text.delete(1.0, END)
         receiver.delete(1.0, END)
 
-    def go_back():
+    def go_back():                                  ## Back to home screen 
         screen6.destroy()
-
 
     global screen6
     screen6 = Tk()
@@ -257,10 +266,10 @@ def Home_Screen_Sending():
     Label(screen6,text='').pack(pady=20)
 
 
-
+## After user login successfully will open a screen that contains three options 1. Send message 2. Inbox 3. logout
 def SendOrCheck():
 
-    def go_back():
+    def go_back():                                 ## Back to main screen 
         screen7.destroy()
 
     global screen7
@@ -280,9 +289,7 @@ def SendOrCheck():
     screen.mainloop()
 
 
-
-
-
+## Check if the user has a new message or no, if it has it will open, decrypt message and display in screen.
 def Home_Screen_Check():
     global screen8
     screen8 = Tk()
@@ -336,51 +343,53 @@ def Home_Screen_Check():
 
 
 
-## AES file encryption
-def decrypt_file(key, filename, chunk_size=24 * 1024):
+## AES file encryption/decryption with AES-128
+def encrypt_file(key, filename, chunk_size=64 * 1024):  
+    output_filename = filename + '.encrypted'
+    iv = token_bytes(16)                                                              ## Generate IV same size as the block that is encrypted
+    encryptor = AES.new(key, AES.MODE_CBC, iv)                                        ## Encrypte with Cipher-Block Chaining mode
+    filesize = os.path.getsize(filename)                                              ## The file size before encryption
+    with open(filename, 'rb') as inputfile:
+        with open(output_filename, 'wb') as outputfile:
+            outputfile.write(struct.pack('<Q', filesize))                             ## The original size of the file is written in the encrypted file
+            outputfile.write(iv)                                                      ## write IV in the encrypted file
+            while True:
+                chunk = inputfile.read(chunk_size)
+                if len(chunk) == 0:
+                    break
+                elif len(chunk) % 16 != 0:
+                    chunk += b"\0" * (16 - len(chunk) % 16)                          ## Padding
+                outputfile.write(encryptor.encrypt(chunk))
+    os.remove(filename)
+
+
+def decrypt_file(key, filename, chunk_size=24 * 1024):          
     output_filename = os.path.splitext(filename)[0]
     with open(filename, 'rb') as infile:
-        origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]
-        iv = infile.read(16)
-        decryptor = AES.new(key, AES.MODE_CBC, iv)
+        origsize = struct.unpack('<Q', infile.read(struct.calcsize('Q')))[0]        ## The original size of the file is read from the first 8 bytes of the encrypted file.
+        iv = infile.read(16)                                                        ## Read IV to initialize  AES objec.
+        decryptor = AES.new(key, AES.MODE_CBC, iv)                                  ## Decrypte with Cipher-Block Chaining mode
         with open(output_filename, 'wb') as outfile:
             while True:
                 chunk = infile.read(chunk_size)
                 if len(chunk) == 0:
                     break
                 outfile.write(decryptor.decrypt(chunk))
-            outfile.truncate(origsize)
+            outfile.truncate(origsize)                                              ## Truncated to the original size, so the padding is thrown out.
     os.remove(filename)
 
-
-def encrypt_file(key, filename, chunk_size=64 * 1024):
-    output_filename = filename + '.encrypted'
-    iv = token_bytes(16)
-    encryptor = AES.new(key, AES.MODE_CBC, iv)
-    filesize = os.path.getsize(filename)
-    with open(filename, 'rb') as inputfile:
-        with open(output_filename, 'wb') as outputfile:
-            outputfile.write(struct.pack('<Q', filesize))
-            outputfile.write(iv)
-            while True:
-                chunk = inputfile.read(chunk_size)
-                if len(chunk) == 0:
-                    break
-                elif len(chunk) % 16 != 0:
-                    chunk += b"\0" * (16 - len(chunk) % 16)
-                outputfile.write(encryptor.encrypt(chunk))
-    os.remove(filename)
-
-## RSA symmetric key encryption
+## RSA symmetric key encryption/decryption
 def generateKeys():
     NameOfFilep='keys/'+username_info.lower()+'public.pem'
-    (publicKey, privateKey) = rsa.newkeys(1024)
+    (publicKey, privateKey) = rsa.newkeys(1024)                                   ## Generate keys with size 128 bit 
     with open(NameOfFilep, 'wb') as p:
         p.write(publicKey.save_pkcs1('PEM'))
     NameOfFilev='keys/'+username_info.lower()+'private.pem'
     with open(NameOfFilev, 'wb') as p:
         p.write(privateKey.save_pkcs1('PEM'))
 
+
+## Return both private and public keys
 def loadKeys():
     NameOfFilep='keys/'+username1.lower()+'public.pem'
     with open(NameOfFilep, 'rb') as p:
@@ -399,9 +408,13 @@ def decrypt_key(ciphertext, key):
     except:
         return False
 
+
+## Sign symmetric key with a key using the sha1 hash function.
 def sign(message, key):
     return rsa.sign(message, key, 'SHA-1')
 
+
+## Verify if either symmetric key or the signature were manipulated and are not authentic.
 def verify(message, signature, key):
     try:
         return rsa.verify(message, signature, key) == 'SHA-1'

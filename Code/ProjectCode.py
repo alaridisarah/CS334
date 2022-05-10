@@ -291,6 +291,8 @@ def SendOrCheck():
 
 ## Check if the user has a new message or no, if it has it will open, decrypt message and display in screen.
 def Home_Screen_Check():
+    def go_back():
+        screen8.destroy()
     global screen8
     screen8 = Tk()
     screen8.geometry("450x450+600+250")
@@ -340,6 +342,9 @@ def Home_Screen_Check():
 
     else:
         Label(screen8, text="No new messages.").pack()
+    Label(screen8,text='').pack(pady=20)
+    Button(screen8,text="Back", height=1, width=10, command=go_back).pack()
+    Label(screen8,text='').pack(pady=20)
 
 
 
